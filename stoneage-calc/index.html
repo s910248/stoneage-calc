@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>石器時代合成計算機 v9.4</title>
+    <style>
+        :root {
+            --bg-color: #2b2b2b;
+            --panel-bg: #f5f5f5;
+            --accent: #5d4037;
+            --highlight: #d84315;
+            --tab-active: #d84315;
+            --tab-inactive: #a1887f;
+            --flash-color: #ffeb3b;
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", "Segoe UI", sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+            margin: 0;
+            padding: 10px;
+            height: 100vh;
+            color: #333;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            gap: 10px;
+        }
+
+        /* --- 左側：選單區 --- */
+        .menu-panel {
+            flex: 1.3;
+            background: var(--panel-bg);
+            border-radius: 8px;
+            border: 3px solid var(--accent);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .search-area {
+            padding: 6px;
+            background: #e0e0e0;
+            border-bottom: 2px solid var(--accent);
+            display: flex;
+            gap: 5px;
+        }
+
+        input#searchBar {
+            flex: 1;
+            padding: 4px 8px;
+            border: 1px solid #999;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        select#categoryFilter {
+            padding: 4px;
+            border: 1px solid #999;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .recipe-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 5px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            align-content: start;
+        }
+
+        .recipe-card {
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            padding: 2px 4px;
+            cursor: pointer;
+            transition: transform 0.1s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 42px;
+            position: relative;
+            background-color: #fff;
+        }
+
+        .card-dur-single { background-color: #ffebee; }
+        .card-energy { background-color: #e3f2fd; }
+        .card-status { background-color: #f3e5f5; }
+        .card-dur-all { background-color: #fff3e0; }
+        .card-composite { background-color: #e8f5e9; }
+        .card-equip { background-color: #eceff1; }
+
+        .recipe-card:hover {
+            transform: translateY(-1px);
+            border-color: var(--highlight);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+            z-index: 10;
+            filter: brightness(0.97);
+        }
+
+        @keyframes flashEffect {
+            0% { background-color: var(--highlight); transform: scale(1.1); }
+            50% { background-color: var(--flash-color); transform: scale(1.05); }
+            100% { filter: brightness(1); transform: scale(1); }
+        }
+        .recipe-card.flash {
+            animation: flashEffect 1.5s ease-out;
+            border: 2px solid var(--highlight);
+            z-index: 20;
+        }
+
+        .recipe-name { 
+            font-weight: bold; font-size: 12px; color: var(--accent); 
+            margin-bottom: 1px; line-height: 1.1; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .recipe-cat { 
+            font-size: 10px; color: #555; background: rgba(255,255,255,0.5); 
+            padding: 0 2px; border-radius: 2px; align-self: start; margin-bottom: 1px; zoom: 0.9;
+        }
+        .recipe-mats { 
+            font-size: 10px; color: #444; white-space: nowrap; 
+            overflow: hidden; text-overflow: ellipsis; zoom: 0.9;
+        }
+
+        /* --- 右側：計算區 --- */
+        .cart-panel {
+            flex: 1.7;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow: hidden;
+        }
+
+        .tabs-container { display: flex; gap: 4px; }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 5px 0;
+            background: var(--tab-inactive);
+            color: white;
+            border: none;
+            border-radius: 5px 5px 0 0;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+        .tab-btn.active {
+            background: var(--tab-active);
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.2);
+        }
+
+        .panel-section {
+            background: #fff;
+            border-radius: 0 0 5px 5px;
+            border: 3px solid var(--highlight);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .top-section { border-radius: 0 0 5px 5px; flex: 0.8; }
+        .bottom-section { border-radius: 5px; flex: 1.2; border: 3px solid #455a64; }
+
+        .section-header {
+            padding: 4px 8px;
+            color: white;
+            font-weight: bold;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-list { background: var(--highlight); }
+        .header-merchant { background: #455a64; }
+
+        .total-badge {
+            background: #ffeb3b;
+            color: #333;
+            padding: 1px 6px;
+            border-radius: 8px;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+
+        .btn-clear {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.5);
+            color: white;
+            padding: 1px 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        .btn-clear:hover { background: rgba(255,255,255,0.4); }
+
+        .content-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px;
+            background: #fafafa;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 6px;
+            border-bottom: 1px solid #eee;
+            background: white;
+            margin-bottom: 2px;
+            font-size: 12px;
+        }
+        .cart-item:hover { background-color: #fff8e1; }
+        .cart-item-name { 
+            color: #333; font-weight: bold; cursor: pointer; 
+            border-bottom: 1px dotted #999;
+        }
+        .cart-item-name:hover { color: var(--highlight); }
+        .btn-remove { color: #d32f2f; cursor: pointer; font-weight: bold; padding-left: 8px; }
+
+        .merchant-grid {
+            column-count: 2;
+            column-gap: 6px;
+            padding: 4px;
+        }
+        .merchant-group {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+            margin-bottom: 6px;
+        }
+        .merchant-title {
+            background: #616161;
+            color: white;
+            padding: 2px 6px;
+            font-weight: bold;
+            font-size: 11px;
+        }
+        .merchant-title[data-group="MA"] { background: #e65100; }
+        .merchant-title[data-group="SA"] { background: #00695c; }
+        .merchant-title[data-group="OTHER"] { background: #616161; }
+
+        .mat-row {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 1px 6px;
+            border-bottom: 1px dashed #f0f0f0;
+            font-size: 12px;
+            color: #333;
+            gap: 6px;
+        }
+        .mat-row:last-child { border-bottom: none; }
+        .mat-name { flex: 1; }
+        
+        /* 預設數量樣式 (數量=1) */
+        .mat-qty { 
+            font-weight: bold; 
+            color: #e65100; /* 橘色 */
+            background: #fff3e0; 
+            padding: 0 4px; 
+            border-radius: 3px; 
+        }
+        
+        /* 高數量樣式 (數量>=2) - 粗體紅字 */
+        .mat-qty.highlight {
+            color: #d50000; /* 鮮豔紅 */
+            background-color: #ffcdd2; /* 淺紅底 */
+            font-weight: 900; /* 極粗體 */
+            border: 1px solid #ef9a9a;
+        }
+
+        .empty-msg { text-align: center; color: #999; margin-top: 15px; font-size: 12px; }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #bdbdbd; border-radius: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="menu-panel">
+        <div class="search-area">
+            <input type="text" id="searchBar" placeholder="搜尋...">
+            <select id="categoryFilter">
+                <option value="all">所有分類</option>
+            </select>
+        </div>
+        <div id="recipeList" class="recipe-list"></div>
+    </div>
+
+    <div class="cart-panel">
+        
+        <div class="tabs-container">
+            <button class="tab-btn active" onclick="switchTab(1)">人物 1</button>
+            <button class="tab-btn" onclick="switchTab(2)">人物 2</button>
+            <button class="tab-btn" onclick="switchTab(3)">人物 3</button>
+            <button class="tab-btn" onclick="switchTab(4)">人物 4</button>
+            <button class="tab-btn" onclick="switchTab(5)">人物 5</button>
+        </div>
+
+        <div class="panel-section top-section">
+            <div class="section-header header-list">
+                <span id="listTitle">📝 人物 1 清單 (點名定位)</span>
+                <button class="btn-clear" onclick="clearCart()">清空</button>
+            </div>
+            <div id="selectedList" class="content-scroll">
+                <div class="empty-msg">尚未加入任何項目</div>
+            </div>
+        </div>
+
+        <div class="panel-section bottom-section">
+            <div class="section-header header-merchant">
+                <div style="display:flex; align-items:center;">
+                    <span>📦 採購指引</span>
+                    <span id="totalMaterialCount" class="total-badge">總數: 0</span>
+                </div>
+            </div>
+            <div id="merchantResults" class="content-scroll">
+                <div class="empty-msg">-- 請先選擇製作項目 --</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+ // --- 1. 資料庫 (完整) ---
+    const recipes = [
+        // 耐久力回復料理(單體類)
+        {name:"粘糊糊的飯",category:"耐久(單)",materials:{"米1":1,"水1":1,"炭1":1}},
+        {name:"腐爛納豆",category:"耐久(單)",materials:{"豆1":1,"水1":1}},
+        {name:"小點心肉",category:"耐久(單)",materials:{"肉1":1,"鹽1":1}},
+        {name:"柔軟的麵包",category:"耐久(單)",materials:{"橡樹果1":1,"炭1":1}},
+        {name:"硬的飯",category:"耐久(單)",materials:{"米2":1,"水2":1,"炭2":1}},
+        {name:"一口肉",category:"耐久(單)",materials:{"肉2":1,"鹽2":1}},
+        {name:"煮過變色的雞蛋",category:"耐久(單)",materials:{"蛋1":1,"鹽1":1,"水1":1}},
+        {name:"半熟的荷包蛋",category:"耐久(單)",materials:{"蛋1":1,"鹽1":1,"水1":1}},
+        {name:"破了的荷包蛋",category:"耐久(單)",materials:{"蛋1":1,"鹽1":1,"水1":1}},
+        {name:"硬掉的荷包蛋",category:"耐久(單)",materials:{"蛋1":1,"鹽1":1,"水1":1}},
+        {name:"烤焦的年糕",category:"耐久(單)",materials:{"米1":1,"炭1":1}},
+        {name:"荷包蛋",category:"耐久(單)",materials:{"蛋1":1,"水1":1}},
+        {name:"熱騰騰的飯團",category:"耐久(單)",materials:{"米3":1,"水3":1,"炭3":1}},
+        {name:"愛情禦飯團",category:"耐久(單)",materials:{"米2":1,"水2":1,"海藻2":1}},
+        {name:"柔軟飯團",category:"耐久(單)",materials:{"米1":1,"鹽1":1,"水1":1,"海藻1":1}},
+        {name:"簡單的肉飯",category:"耐久(單)",materials:{"肉1":1,"豆1":1}},
+        {name:"普通的納豆",category:"耐久(單)",materials:{"豆2":1,"水2":1}},
+        {name:"詭異的牛肉燉煮",category:"耐久(單)",materials:{"蜥蜴1":1,"海星1":1,"鹽1":1,"水1":1}},
+        {name:"加入生雞蛋的飲料水",category:"耐久(單)",materials:{"蛋3":1,"水3":1}},
+        {name:"海星火焰",category:"耐久(單)",materials:{"海星1":1,"炭1":1}},
+        {name:"香噴噴的麵包",category:"耐久(單)",materials:{"橡樹果2":1,"炭2":1}},
+        {name:"蛋蜜汁",category:"耐久(單)",materials:{"蛋2":1,"糖2":1}},
+        {name:"現有的蔬菜",category:"耐久(單)",materials:{"紅蘿蔔1":1,"茄子1":1,"馬鈴薯1":1,"香菇1":1,"水1":1}},
+        {name:"酸海苔",category:"耐久(單)",materials:{"海藻1":1,"鹽1":1}},
+        {name:"精心燉煮過的肉丸",category:"耐久(單)",materials:{"水1":1,"肉1":1,"生薑1":1}},
+        {name:"丸丸肉",category:"耐久(單)",materials:{"肉3":1,"鹽4":1}},
+        {name:"明太子黃瓜",category:"耐久(單)",materials:{"黃瓜1":1,"魚1":1}},
+        {name:"花枝腳",category:"耐久(單)",materials:{"花枝1":1,"炭1":1}},
+        {name:"小麵包",category:"耐久(單)",materials:{"蛋2":1,"橡樹果2":1,"炭2":1}},
+        {name:"蛋特選",category:"耐久(單)",materials:{"蛋2":1,"水2":1}},
+        {name:"溫泉蛋",category:"耐久(單)",materials:{"蛋1":1,"水3":1}},
+        {name:"半熟的荷包蛋(二)",category:"耐久(單)",materials:{"魚1":1,"蛋2":1,"鹽2":1,"水2":1}},
+        {name:"年糕",category:"耐久(單)",materials:{"米2":1,"炭2":1}},
+        {name:"黃金飯",category:"耐久(單)",materials:{"米4":1,"炭4":1,"水4":1}},
+        {name:"青蛙手捲",category:"耐久(單)",materials:{"米1":1,"水1":1,"海藻1":1,"青蛙1":1}},
+        {name:"保存用曬幹肉",category:"耐久(單)",materials:{"肉2":1,"鹽2":1}},
+        {name:"硬的保存肉",category:"耐久(單)",materials:{"肉2":1,"炭2":1}},
+        {name:"有份量的肉飯",category:"耐久(單)",materials:{"蛋2":1,"水2":1}},
+        {name:"脂肪多的肉飯",category:"耐久(單)",materials:{"蛋1":1,"水3":1}},
+        {name:"鹽漬海星",category:"耐久(單)",materials:{"海星2":1,"鹽2":1}},
+        {name:"美食湯",category:"耐久(單)",materials:{"螃蟹4":1,"花枝4":1,"胡椒4":1,"水4":1}},
+        {name:"幹過頭的魚幹",category:"耐久(單)",materials:{"魚1":1,"炭1":1}},
+        {name:"生螃蟹球",category:"耐久(單)",materials:{"蛋1":1,"螃蟹1":1}},
+        {name:"硬的麵包",category:"耐久(單)",materials:{"橡樹果3":1,"炭3":1}},
+        {name:"海星飯",category:"耐久(單)",materials:{"海星2":1,"米2":1}},
+        {name:"大塊的肉",category:"耐久(單)",materials:{"肉4":1,"油4":1}},
+        {name:"烤魚料理",category:"耐久(單)",materials:{"魚1":1,"水1":1,"鹽2":1}},
+        {name:"蛋殼蒸",category:"耐久(單)",materials:{"蛋1":1,"香菇1":1,"馬鈴薯1":1}},
+        {name:"稍甜的燙青菜",category:"耐久(單)",materials:{"香菇2":1,"紅蘿蔔2":1,"馬鈴薯2":1,"番茄2":1,"水2":1}},
+        {name:"半生魚幹",category:"耐久(單)",materials:{"魚1":1,"炭2":1}},
+        {name:"小塊肉煮",category:"耐久(單)",materials:{"肉2":1,"水2":1,"生薑2":1}},
+        {name:"培根魚燉煮",category:"耐久(單)",materials:{"肉1":1,"魚1":1,"鹽1":1,"水1":1}},
+        {name:"烤章魚丸",category:"耐久(單)",materials:{"蛋2":1,"章魚2":1}},
+        {name:"熱騰騰的飯",category:"耐久(單)",materials:{"米3":1,"水3":1,"炭3":1}},
+        {name:"滿腹肉",category:"耐久(單)",materials:{"肉4":1,"大蒜4":1,"胡椒4":1,"炭4":1}},
+        {name:"山煮蘑菇",category:"耐久(單)",materials:{"香菇1":1,"豆1":1,"花枝1":1,"水1":1}},
+        {name:"裏煮蘑菇",category:"耐久(單)",materials:{"香菇1":1,"馬鈴薯1":1,"花枝1":1,"水1":1}},
+        {name:"威力上升磨菇",category:"耐久(單)",materials:{"香菇2":1,"胡椒2":1}},
+        {name:"地瓜飯",category:"耐久(單)",materials:{"米3":1,"馬鈴薯3":1,"地瓜3":1}},
+        {name:"葡萄飯團",category:"耐久(單)",materials:{"海藻2":1,"葡萄2":1,"米2":1,"水2":1}},
+        {name:"冷凍保存肉",category:"耐久(單)",materials:{"肉3":1,"鹽3":1}},
+        {name:"普通的曬幹魚",category:"耐久(單)",materials:{"魚2":1,"炭2":1}},
+        {name:"雙魚燉煮",category:"耐久(單)",materials:{"魚2":1,"鹽1":1,"水1":1}},
+        {name:"蜜桃醬汁牛排",category:"耐久(單)",materials:{"螃蟹2":1,"蛋2":1,"炭1":1}},
+        {name:"大飯團",category:"耐久(單)",materials:{"米2":1,"鹽2":1,"水2":1,"海藻2":1}},
+        {name:"慢火煮",category:"耐久(單)",materials:{"魚2":1,"馬鈴薯2":1,"大蒜2":1,"水2":1}},
+        {name:"生煮溫蔬菜",category:"耐久(單)",materials:{"紅蘿蔔3":1,"番茄3":1,"馬鈴薯3":1,"香菇3":1,"水3":1}},
+        {name:"肉片煮",category:"耐久(單)",materials:{"肉3":1,"生薑3":1,"水3":1}},
+        {name:"醃漬的保存肉",category:"耐久(單)",materials:{"肉4":1,"鹽4":1,"炭4":1}},
+        {name:"原始茶碗蒸",category:"耐久(單)",materials:{"蛋1":1,"蝦1":1,"香菇1":1}},
+        {name:"魚大鍋煮",category:"耐久(單)",materials:{"魚2":1,"鹽2":1,"水2":1}},
+        {name:"包心菜卷肉",category:"耐久(單)",materials:{"包心菜3":1,"肉3":1}},
+        {name:"蘋果飯團",category:"耐久(單)",materials:{"海藻3":1,"蘋果3":1,"米3":1,"水3":1}},
+        {name:"烤豬排",category:"耐久(單)",materials:{"肉4":1,"油4":1,"胡椒4":1}},
+        {name:"烤飯團",category:"耐久(單)",materials:{"米3":1,"海藻3":1,"鹽3":1,"水3":1}},
+        {name:"燉爛肉",category:"耐久(單)",materials:{"肉4":1,"水4":1,"生薑4":1,"油4":1}},
+        {name:"特選納豆",category:"耐久(單)",materials:{"豆4":1,"海藻4":1,"水4":1}},
+        {name:"便利商店關東煮",category:"耐久(單)",materials:{"蛋2":1,"章魚2":1,"馬鈴薯2":1,"串2":1,"水2":1}},
+        {name:"肉蔬菜大鍋煮",category:"耐久(單)",materials:{"肉3":1,"水3":1,"生薑3":1,"蘆筍3":1,"紅蘿蔔3":1}},
+        {name:"大塊肉煮",category:"耐久(單)",materials:{"水4":1,"肉4":1,"生薑4":1}},
+        {name:"貝類飯",category:"耐久(單)",materials:{"貝2":1,"米2":1}},
+        {name:"村煮蘑菇",category:"耐久(單)",materials:{"香菇2":1,"地瓜2":1,"花枝2":1,"水2":1}},
+        {name:"高級曬幹魚",category:"耐久(單)",materials:{"魚3":1,"炭3":1}},
+        {name:"特大荷包蛋",category:"耐久(單)",materials:{"蛋4":1,"水4":1,"鹽4":1}},
+
+        // 耐久類回復料理(全體類)
+        {name:"蛋年糕",category:"耐久(全)",materials:{"蛋2":1,"米2":1,"鹽2":1,"水2":1}},
+        {name:"烤青蛙",category:"耐久(全)",materials:{"青蛙2":1,"炭1":1}},
+        {name:"幹魷魚",category:"耐久(全)",materials:{"花枝1":1,"炭1":1}},
+        {name:"必勝祈願薑",category:"耐久(全)",materials:{"生薑1":1,"炭1":1}},
+        {name:"烤筋肉",category:"耐久(全)",materials:{"肉2":1,"鹽2":1,"炭2":1}},
+        {name:"有筋的裏肌肉",category:"耐久(全)",materials:{"肉2":1,"鹽2":1,"炭2":1}},
+        {name:"鐵板肉",category:"耐久(全)",materials:{"肉1":1,"油1":1,"炭1":1}},
+        {name:"原始肉套餐剩餘的東西",category:"耐久(全)",materials:{"肉1":1,"油1":1,"炭1":1}},
+        {name:"香腸",category:"耐久(全)",materials:{"魚1":1,"鹽1":1}},
+        {name:"暖暖的燉煮",category:"耐久(全)",materials:{"紅蘿蔔2":1,"馬鈴薯2":1,"鹽2":1,"水2":1}},
+        {name:"特製厚肉片",category:"耐久(全)",materials:{"肉1":1,"蒜1":1,"鹽1":1,"炭1":1}},
+        {name:"鹽味的油炸螃蟹",category:"耐久(全)",materials:{"螃蟹1":1,"鹽1":1,"油1":1}},
+        {name:"雞蛋雜煮",category:"耐久(全)",materials:{"米2":1,"鹽2":1,"水2":1,"蛋2":1}},
+        {name:"原始肉的經濟套餐",category:"耐久(全)",materials:{"肉2":1,"油2":1,"炭2":1}},
+        {name:"超嗆大蒜",category:"耐久(全)",materials:{"大蒜2":1,"炭2":1}},
+        {name:"神秘的肉丸",category:"耐久(全)",materials:{"蜥蜴3":1,"青蛙3":1}},
+        {name:"漢堡",category:"耐久(全)",materials:{"肉2":1,"油2":1,"鹽2":1,"炭2":1}},
+        {name:"烤焦的魚",category:"耐久(全)",materials:{"魚2":1,"炭2":1,"鹽2":1}},
+        {name:"兩棲類生魚片",category:"耐久(全)",materials:{"蜥蜴2":1,"青蛙2":1}},
+        {name:"變色的肉盤",category:"耐久(全)",materials:{"肉3":1,"香菇1":1,"櫻桃3":1}},
+        {name:"特製2倍厚肉片",category:"耐久(全)",materials:{"肉2":1,"蒜2":1,"鹽2":1,"炭2":1}},
+        {name:"原始肉的特別套餐",category:"耐久(全)",materials:{"肉3":1,"米3":1,"油3":1,"炭3":1}},
+        {name:"鮮美的油炸螃蟹",category:"耐久(全)",materials:{"螃蟹2":1,"鹽2":1,"油2":1}},
+        {name:"脂肪多的肉飯",category:"耐久(全)",materials:{"蛋1":1,"水3":1}},
+        {name:"炸馬鈴薯",category:"耐久(全)",materials:{"馬鈴薯4":1,"油4":1,"鹽4":1}},
+        {name:"蘋果醬汁牛排",category:"耐久(全)",materials:{"肉3":1,"炭3":1,"蘋果3":1}},
+        {name:"蜜桃醬汁牛排",category:"耐久(全)",materials:{"蛋3":1,"炭3":1,"螃蟹3":1}},
+        {name:"草莓醬汁牛排",category:"耐久(全)",materials:{"肉3":1,"炭3":1,"草莓3":1}},
+        {name:"梨子醬汁牛排",category:"耐久(全)",materials:{"肉3":1,"炭3":1,"梨子3":1}},
+        {name:"葡萄醬汁牛排",category:"耐久(全)",materials:{"肉3":1,"炭3":1,"葡萄3":1}},
+        {name:"櫻桃醬汁牛排",category:"耐久(全)",materials:{"肉3":1,"櫻桃3":1,"炭3":1}},
+        {name:"豪華肉拼盤",category:"耐久(全)",materials:{"肉4":1,"豆4":1,"櫻桃4":1}},
+        {name:"鹹的烤魚",category:"耐久(全)",materials:{"魚3":1,"炭2":1,"鹽2":1}},
+        {name:"冷凍的生魚片",category:"耐久(全)",materials:{"花枝2":1,"章魚2":1,"貝2":1}},
+        {name:"巨人俱樂部",category:"耐久(全)",materials:{"螃蟹3":1,"水3":1}},
+        {name:"塔姆塔姆烤生薑",category:"耐久(全)",materials:{"生薑4":1,"胡椒4":1,"油4":1}},
+        {name:"新鮮的烤花枝",category:"耐久(全)",materials:{"花枝3":1,"炭3":1,"鹽3":1}},
+        {name:"烤超上等香菇",category:"耐久(全)",materials:{"香菇3":1,"胡椒3":1,"串2":1,"炭3":1}},
+        {name:"面皮很厚的炸螃蟹",category:"耐久(全)",materials:{"螃蟹3":1,"鹽3":1,"油3":1}},
+        {name:"原始肉的超豪華特餐",category:"耐久(全)",materials:{"肉4":1,"炭4":1,"油4":1,"葡萄4":1}},
+        {name:"烤赤肉",category:"耐久(全)",materials:{"肉4":1,"炭4":1,"胡椒4":1,"紅蘿蔔4":1}},
+        {name:"烤魚",category:"耐久(全)",materials:{"魚4":1,"炭3":1,"鹽3":1}},
+        {name:"半熟的牛排",category:"耐久(全)",materials:{"肉3":1,"蒜2":1,"胡椒4":1,"炭4":1}},
+        {name:"體力增強香菇串",category:"耐久(全)",materials:{"香菇3":1,"大蒜2":1,"串3":1,"炭3":1}},
+        {name:"漁村風烤貝殼",category:"耐久(全)",materials:{"貝4":1,"炭4":1}},
+        {name:"香料牛排",category:"耐久(全)",materials:{"肉4":1,"蒜3":1,"胡椒4":1,"炭4":1}},
+        {name:"炸硬螃蟹",category:"耐久(全)",materials:{"螃蟹4":1,"鹽4":1,"油4":1}},
+        {name:"特製5倍厚肉片",category:"耐久(全)",materials:{"肉4":1,"蒜3":1,"鹽4":1,"胡椒4":1,"炭4":1}},
+        {name:"香炸脆蟹",category:"耐久(全)",materials:{"螃蟹4":1,"油4":1,"鹽4":1,"胡椒4":1}},
+
+        // 氣力回復料理
+        {name:"蘿蔔棒",category:"氣力",materials:{"紅蘿蔔1":1,"鹽1":1}},
+        {name:"蘆筍棒",category:"氣力",materials:{"蘆筍1":1,"鹽1":1}},
+        {name:"茄子跟斑",category:"氣力",materials:{"茄子1":1,"水1":1,"鹽1":1}},
+        {name:"小黃瓜湯",category:"氣力",materials:{"小黃瓜1":1,"水1":1}},
+        {name:"生烤地瓜",category:"氣力",materials:{"地瓜1":1,"鹽1":1,"串1":1,"炭1":1}},
+        {name:"綜合豆點心",category:"氣力",materials:{"豆1":1,"橡樹果1":1}},
+        {name:"鹽醃黃瓜",category:"氣力",materials:{"小黃瓜1":1,"鹽1":1}},
+        {name:"葡萄幹",category:"氣力",materials:{"葡萄1":1,"炭1":1}},
+        {name:"果菜汁",category:"氣力",materials:{"紅蘿蔔1":1,"蕃茄1":1}},
+        {name:"草莓醃砂糖",category:"氣力",materials:{"草莓1":1,"糖1":1}},
+        {name:"即席蔬菜串燒",category:"氣力",materials:{"紅蘿蔔1":1,"青椒1":1,"蔥1":1,"串1":1,"炭1":1}},
+        {name:"生包心菜",category:"氣力",materials:{"白菜1":1,"鹽1":1}}, 
+        {name:"橡樹果料理",category:"氣力",materials:{"橡樹果1":1,"油1":1}},
+        {name:"熱蔬菜味噌湯",category:"氣力",materials:{"紅蘿蔔2":1,"包心菜2":1,"豆2":1,"鹽2":1,"水2":1}},
+        {name:"泡菜",category:"氣力",materials:{"小黃瓜1":1,"豆1":1,"鹽1":1}},
+        {name:"綠色沙拉",category:"氣力",materials:{"紅蘿蔔1":1,"蕃茄1":1,"小黃瓜1":1,"豆1":1,"白菜1":1}},
+        {name:"大口咬蕃茄",category:"氣力",materials:{"蕃茄2":1,"鹽2":1}},
+        {name:"小黃瓜湯",category:"氣力",materials:{"小黃瓜1":1,"水1":1}},
+        {name:"果汁軟糖",category:"氣力",materials:{"蛋1":1,"水1":1,"糖1":1,"香草1":1}},
+        {name:"草莓勾玉糖",category:"氣力",materials:{"草莓1":1,"糖1":1,"炭1":1}},
+        {name:"橘子勾玉糖",category:"氣力",materials:{"橘子1":1,"炭1":1,"糖1":1}},
+        {name:"勾玉巧克力",category:"氣力",materials:{"豆1":1,"糖1":1,"香草1":1,"炭1":1}},
+        {name:"餅幹",category:"氣力",materials:{"橡樹果1":1,"炭1":1,"糖1":1,"油1":1,"蛋1":1}},
+        {name:"嫩肉湯",category:"氣力",materials:{"肉1":1,"鹽1":1,"生薑1":1,"水1":1,"炭1":1}},
+        {name:"蒜豆",category:"氣力",materials:{"大蒜1":1,"豆1":1}},
+        {name:"水果拼盤",category:"氣力",materials:{"桃子1":1,"蘋果1":1,"草莓1":1,"葡萄1":1,"櫻桃1":1}},
+        {name:"便宜的香草茶",category:"氣力",materials:{"香草1":1,"水1":1,"炭1":1}},
+        {name:"蘆筍Mini",category:"氣力",materials:{"蘆筍1":1,"油1":1,"炭1":1}},
+        {name:"蘿蔔蔥棒",category:"氣力",materials:{"紅蘿蔔3":1,"蔥3":1}},
+        {name:"葉子烤蕃薯",category:"氣力",materials:{"地瓜3":1,"串3":1,"炭3":1}},
+        {name:"半熟的芋頭",category:"氣力",materials:{"地瓜3":1,"串3":1,"炭3":1}},
+        {name:"1世紀梨",category:"氣力",materials:{"梨子1":1,"水1":1}},
+        {name:"酸水果",category:"氣力",materials:{"蘋果3":1,"草莓3":1,"櫻桃3":1}},
+        {name:"清脆沙拉",category:"氣力",materials:{"紅蘿蔔2":1,"蕃茄2":1,"白菜2":1,"小黃瓜2":1,"豆子2":1}},
+        {name:"千層沙拉",category:"氣力",materials:{"紅蘿蔔2":1,"蕃茄2":1,"白菜2":1,"小黃瓜2":1,"豆子2":1}},
+        {name:"天然桃子水",category:"氣力",materials:{"櫻桃1":1,"水1":1}},
+        {name:"豆漿",category:"氣力",materials:{"豆1":1,"鹽1":1}},
+        {name:"跳躍青蛙",category:"氣力",materials:{"青蛙1":1,"油1":1}},
+        {name:"青椒包肉",category:"氣力",materials:{"肉3":1,"青椒3":1}},
+        {name:"隨便煮煮湯",category:"氣力",materials:{"肉1":1,"海藻1":1,"小黃瓜1":1,"草莓1":1,"水1":1}},
+        {name:"味道爽口的炒青菜",category:"氣力",materials:{"青椒2":1,"包心菜2":1,"油2":1,"炭2":1}},
+        {name:"熱的魚味噌湯",category:"氣力",materials:{"魚2":1,"包心菜2":1,"豆2":1,"水2":1,"鹽2":1}},
+        {name:"高級咖啡",category:"氣力",materials:{"豆3":1,"水3":1,"炭3":1}},
+        {name:"生炒蔬菜",category:"氣力",materials:{"青椒3":1,"包心菜3":1,"油3":1,"炭1":1}},
+        {name:"海星梨",category:"氣力",materials:{"海星3":1,"梨子3":1}},
+        {name:"生烤蔬菜串燒",category:"氣力",materials:{"馬鈴薯3":1,"青椒3":1,"蔥3":1,"串3":1,"炭1":1}},
+        {name:"石烤地瓜",category:"氣力",materials:{"地瓜3":1,"鹽3":1,"串3":1,"炭3":1}},
+        {name:"海藻沙拉",category:"氣力",materials:{"海藻2":1,"紅蘿蔔2":1,"小黃瓜2":1,"蕃茄2":1,"包心菜2":1}},
+        {name:"普通的香草茶",category:"氣力",materials:{"香草2":1,"水2":1,"炭2":1}},
+        {name:"爛青菜的串燒",category:"氣力",materials:{"馬鈴薯3":1,"青椒3":1,"蔥3":1,"串3":1,"炭4":1}},
+        {name:"秘密的沙拉",category:"氣力",materials:{"蛋3":1,"紅蘿蔔3":1,"蕃茄3":1,"小黃瓜3":1,"白菜3":1}},
+        {name:"蛋型巧克力",category:"氣力",materials:{"豆2":1,"糖2":1,"香草2":1,"炭2":1}},
+        {name:"成熟水果",category:"氣力",materials:{"梨子4":1,"蘋果4":1,"櫻桃4":1,"葡萄4":1}},
+        {name:"活力湯",category:"氣力",materials:{"肉2":1,"水2":1,"鹽2":1,"大蒜2":1}},
+        {name:"甜味魚的味增湯",category:"氣力",materials:{"水3":1,"豆3":1,"魚3":1,"包心菜3":1,"鹽3":1}},
+        {name:"高級香草茶",category:"氣力",materials:{"香草3":1,"水3":1,"炭3":1}},
+        {name:"豪華蔬菜串燒",category:"氣力",materials:{"蕃茄4":1,"青椒4":1,"蔥4":1,"串4":1,"炭4":1}},
+        {name:"新鮮的沙拉",category:"氣力",materials:{"紅蘿蔔4":1,"蕃茄4":1,"小黃瓜4":1,"包心菜4":1}},
+        {name:"精心燉煮的湯",category:"氣力",materials:{"魚2":1,"鹽2":1,"生薑2":1,"水2":1,"炭2":1}},
+        {name:"白米鮮味高湯",category:"氣力",materials:{"米4":1,"水4":1,"胡椒4":1}},
+        {name:"美味蔬菜味噌湯",category:"氣力",materials:{"包心菜4":1,"豆4":1,"蕃茄4":1,"水4":1,"鹽4":1}},
+        {name:"巧克力片",category:"氣力",materials:{"豆3":1,"糖3":1,"香草3":1,"炭3":1}},
+        {name:"氣力增強蘑菇串",category:"氣力",materials:{"串3":1,"香菇3":1,"蜥蜴3":1,"炭3":1}},
+        {name:"香料炒青菜",category:"氣力",materials:{"青椒4":1,"包心菜4":1,"胡椒4":1,"油4":1,"炭4":1}},
+        {name:"祝福酒",category:"氣力",materials:{"米3":1,"水3":1,"蝦3":1}},
+        {name:"份量十足的湯",category:"氣力",materials:{"肉2":1,"魚3":1,"水2":1,"鹽2":1}},
+        {name:"雜煮味增",category:"氣力",materials:{"豆3":1,"白菜3":1,"橡樹果1":1,"水3":1,"炭3":1}},
+        {name:"淡味魚味噌湯",category:"氣力",materials:{"魚3":1,"包心菜3":1,"豆3":1,"鹽3":1,"水3":1}},
+        {name:"超嗆大蒜",category:"氣力",materials:{"大蒜2":1,"炭2":1}},
+        {name:"多多出產的小黃瓜汁",category:"氣力",materials:{"小黃瓜4":1,"水4":1}},
+        {name:"圖騰巧克力",category:"氣力",materials:{"豆4":1,"糖4":1,"香草4":1,"炭4":1}},
+        {name:"美味湯",category:"氣力",materials:{"水4":1,"螃蟹3":1,"蝦3":1,"胡椒4":1}},
+        {name:"辣味魚的味噌湯",category:"氣力",materials:{"魚4":1,"豆4":1,"包心菜4":1,"鹽4":1,"水4":1}},
+        {name:"美味魚肉味噌湯",category:"氣力",materials:{"魚4":1,"豆4":1,"包心菜4":1,"鹽4":1,"水4":1}},
+        {name:"螃蟹味噌湯",category:"氣力",materials:{"水4":1,"鹽4":1,"豆4":1,"海藻4":1,"螃蟹4":1}},
+        {name:"美食湯",category:"氣力",materials:{"水4":1,"螃蟹4":1,"花枝4":1,"胡椒4":1}},
+
+        // 耐久&氣力回復料理
+        {name:"很好喝的肉湯",category:"耐久氣力",materials:{"肉3":1,"水3":1,"香草4":1,"胡椒4":1}},
+        {name:"原始粽子",category:"耐久氣力",materials:{"肉2":1,"米2":1,"蛋2":1}},
+        {name:"赤飯",category:"耐久氣力",materials:{"米4":1,"豆4":1,"炭4":1,"水4":1}},
+        {name:"沾糖吃的粽子",category:"耐久氣力",materials:{"米3":1,"糖3":1}},
+        {name:"山菜年菜",category:"耐久氣力",materials:{"肉3":1,"紅蘿蔔3":1,"地瓜3":1,"香菇3":1,"蘆筍3":1}},
+        {name:"鏡年糕",category:"耐久氣力",materials:{"米4":1,"水4":1,"橘子4":1,"海藻4":1}},
+        {name:"很好吃的牛肉燉煮",category:"耐久氣力",materials:{"肉3":1,"大蒜2":1,"油3":1,"水3":1}},
+        {name:"肉粽",category:"耐久氣力",materials:{"肉4":1,"油4":1,"鹽4":1,"米4":1,"蛋4":1}},
+        {name:"豪華遊樂套餐",category:"耐久氣力",materials:{"肉2":1,"蛋2":1,"魚2":1,"貝2":1,"米2":1}},
+        {name:"街煮蘑菇",category:"耐久氣力",materials:{"香菇3":1,"豆3":1,"馬鈴薯3":1,"水3":1}},
+        {name:"大補飯團",category:"耐久氣力",materials:{"肉4":1,"米4":1,"海藻4":1,"水4":1}},
+        {name:"獨門秘方牛肉燉煮",category:"耐久氣力",materials:{"肉4":3,"大蒜3":1,"油4":1,"水4":1}},
+        {name:"鐵人關東煮",category:"耐久氣力",materials:{"螃蟹4":1,"章魚4":1,"蝦4":1,"串4":1,"水4":1}},
+        {name:"大城市的煮蘑菇",category:"耐久氣力",materials:{"香菇4":1,"豆4":1,"地瓜4":1,"水4":1}},
+        {name:"味道爽口的肉湯",category:"耐久氣力",materials:{"肉3":1,"胡椒3":1,"香草3":1,"水3":1}},
+
+        // 狀態類料理
+        {name:"堅硬肉串燒",category:"狀態料理",materials:{"魚4":1,"蛋4":1}},
+        {name:"大塊肉串燒",category:"狀態料理",materials:{"肉4":1,"生薑4":1,"串4":1,"炭4":1}},
+        {name:"幹柿",category:"狀態料理",materials:{"柿子1":1,"串1":1}},
+        {name:"厚肉塊串燒",category:"狀態料理",materials:{"肉2":1,"生薑2":1,"串2":1,"炭2":1}},
+        {name:"魚糕",category:"狀態料理",materials:{"魚1":1,"鹽1":1}},
+        {name:"鹽味獸肉串燒",category:"狀態料理",materials:{"肉2":1,"生薑2":1,"串2":1,"炭2":1}},
+        {name:"貝殼串",category:"狀態料理",materials:{"貝2":1,"串2":1}},
+        {name:"烤焦的章魚串燒",category:"狀態料理",materials:{"章魚1":1,"鹽1":1,"串1":1,"炭1":1}},
+        {name:"三色串",category:"狀態料理",materials:{"蛋1":1,"蜥蜴1":1,"馬鈴薯1":1,"串1":1,"炭1":1}},
+        {name:"五色串",category:"狀態料理",materials:{"蛋2":1,"青蛙2":1,"馬鈴薯2":1,"串2":1,"炭2":1}},
+        {name:"美味團子",category:"狀態料理",materials:{"米2":1,"鹽2":1,"串2":1}},
+        {name:"白雪蘋果",category:"狀態料理",materials:{"蘋果1":1,"蜥蜴1":1}},
+        {name:"一條小魚串",category:"狀態料理",materials:{"魚1":1,"炭1":1,"串1":1}},
+        {name:"烤焦的魚串燒",category:"狀態料理",materials:{"魚1":1,"炭1":1,"鹽1":1,"串1":1}},
+        {name:"烤焦的蜥蜴串燒",category:"狀態料理",materials:{"蜥蜴1":1,"鹽1":1,"串1":1,"炭1":1}},
+        {name:"出乎意料的混合串燒",category:"狀態料理",materials:{"串4":1,"炭4":1,"海星4":1,"青蛙4":1,"蜥蜴4":1}},
+        {name:"烤焦的螃蟹串燒",category:"狀態料理",materials:{"螃蟹1":1,"鹽1":1,"串1":1,"炭1":1}},
+        {name:"烤焦的蝦子串燒",category:"狀態料理",materials:{"蝦1":1,"鹽1":1,"串1":1,"炭1":1}},
+        {name:"即席蝦子串燒",category:"狀態料理",materials:{"蝦2":1,"鹽2":1,"串2":1,"炭2":1}},
+        {name:"即席螃蟹串燒",category:"狀態料理",materials:{"螃蟹2":1,"鹽2":1,"串2":1,"炭2":1}},
+        {name:"蝦子的鹽味串燒",category:"狀態料理",materials:{"蝦2":1,"鹽2":1,"串2":1,"炭2":1}},
+        {name:"肥肉串",category:"狀態料理",materials:{"肉3":1,"串3":1,"炭3":1}},
+        {name:"濁酒",category:"狀態料理",materials:{"水1":1,"米2":1,"蜥蜴1":1}},
+        {name:"甜的水果酒",category:"狀態料理",materials:{"草莓2":1,"葡萄2":1,"水2":1,"桃子2":1,"糖2":1}},
+        {name:"苦的水果酒",category:"狀態料理",materials:{"草莓4":1,"葡萄4":1,"水4":1,"梨子4":1,"糖4":1}},
+        {name:"涼酒",category:"狀態料理",materials:{"水3":1,"米3":1,"炭3":1}},
+        {name:"冷酒",category:"狀態料理",materials:{"水3":1,"米3":1,"炭3":1}},
+        {name:"蛋酒",category:"狀態料理",materials:{"水3":1,"米3":1,"蛋3":1}},
+        {name:"味道很強的水果酒",category:"狀態料理",materials:{"葡萄4":1,"生薑4":1,"大蒜4":1,"水4":1,"糖4":1}},
+
+        // 裝備
+        {name:"合成石1",category:"合成石",materials:{"石1":1,"皮1":1}},
+        {name:"合成石2",category:"合成石",materials:{"石2":1,"皮2":1}},
+        {name:"合成石3",category:"合成石",materials:{"石3":1,"皮3":1}},
+        {name:"合成石4",category:"合成石",materials:{"石4":1,"皮4":1}},
+        {name:"合成石5",category:"合成石",materials:{"石5":1,"皮5":1}},
+        {name:"合成石6",category:"合成石",materials:{"石6":1,"皮6":1}},
+        {name:"合成石7",category:"合成石",materials:{"石7":1,"皮7":1}},
+        {name:"合成石8",category:"合成石",materials:{"石8":1,"皮8":1}},
+        {name:"合成石9",category:"合成石",materials:{"石8":2,"皮8":2}},
+        {name:"合成槍1",category:"合成槍",materials:{"木1":1,"牙1":1}},
+        {name:"合成槍2",category:"合成槍",materials:{"木2":1,"牙2":1}},
+        {name:"合成槍3",category:"合成槍",materials:{"木3":1,"牙3":1}},
+        {name:"合成槍4",category:"合成槍",materials:{"木4":1,"牙4":1}},
+        {name:"合成槍5",category:"合成槍",materials:{"木5":1,"牙5":1}},
+        {name:"合成槍6",category:"合成槍",materials:{"木6":1,"牙6":1}},
+        {name:"合成槍7",category:"合成槍",materials:{"木7":1,"牙7":1}},
+        {name:"合成槍8",category:"合成槍",materials:{"木8":1,"牙8":1}},
+        {name:"合成槍9",category:"合成槍",materials:{"木8":2,"牙8":2}},
+        {name:"合成爪1",category:"合成爪",materials:{"牙1":1,"殼1":1}},
+        {name:"合成爪2",category:"合成爪",materials:{"牙2":1,"殼2":1}},
+        {name:"合成爪3",category:"合成爪",materials:{"牙3":1,"殼3":1}},
+        {name:"合成爪4",category:"合成爪",materials:{"牙4":1,"殼4":1}},
+        {name:"合成爪5",category:"合成爪",materials:{"牙5":1,"殼5":1}},
+        {name:"合成爪6",category:"合成爪",materials:{"牙6":1,"殼6":1}},
+        {name:"合成爪7",category:"合成爪",materials:{"牙7":1,"殼7":1}},
+        {name:"合成爪8",category:"合成爪",materials:{"牙8":1,"殼8":1}},
+        {name:"合成爪9",category:"合成爪",materials:{"牙8":2,"殼8":2}},
+        {name:"合成弓箭1",category:"合成弓箭",materials:{"線1":1,"木1":1}},
+        {name:"合成弓箭2",category:"合成弓箭",materials:{"線2":1,"木2":1}},
+        {name:"合成弓箭3",category:"合成弓箭",materials:{"線3":1,"木3":1}},
+        {name:"合成弓箭4",category:"合成弓箭",materials:{"線4":1,"木4":1}},
+        {name:"合成弓箭5",category:"合成弓箭",materials:{"線5":1,"木5":1}},
+        {name:"合成弓箭6",category:"合成弓箭",materials:{"線6":1,"木6":1}},
+        {name:"合成弓箭7",category:"合成弓箭",materials:{"線7":1,"木7":1}},
+        {name:"合成弓箭8",category:"合成弓箭",materials:{"線8":1,"木8":1}},
+        {name:"合成弓箭9",category:"合成弓箭",materials:{"線8":2,"木8":2}},
+        {name:"合成棍棒1",category:"合成棍",materials:{"線1":1,"骨1":1}},
+        {name:"合成棍棒2",category:"合成棍",materials:{"線2":1,"骨2":1}},
+        {name:"合成棍棒3",category:"合成棍",materials:{"線3":1,"骨3":1}},
+        {name:"合成棍棒4",category:"合成棍",materials:{"線4":1,"骨4":1}},
+        {name:"合成棍棒5",category:"合成棍",materials:{"線5":1,"骨5":1}},
+        {name:"合成棍棒6",category:"合成棍",materials:{"線6":1,"骨6":1}},
+        {name:"合成棍棒7",category:"合成棍",materials:{"線7":1,"骨7":1}},
+        {name:"合成棍棒8",category:"合成棍",materials:{"線8":1,"骨8":1}},
+        {name:"合成棍棒9",category:"合成棍",materials:{"線8":2,"骨8":2}},
+        {name:"合成斧頭1",category:"合成斧",materials:{"石1":1,"木1":1}},
+        {name:"合成斧頭2",category:"合成斧",materials:{"石2":1,"木2":1}},
+        {name:"合成斧頭3",category:"合成斧",materials:{"石3":1,"木3":1}},
+        {name:"合成斧頭4",category:"合成斧",materials:{"石4":1,"木4":1}},
+        {name:"合成斧頭5",category:"合成斧",materials:{"石5":1,"木5":1}},
+        {name:"合成斧頭6",category:"合成斧",materials:{"石6":1,"木6":1}},
+        {name:"合成斧頭7",category:"合成斧",materials:{"石7":1,"木7":1}},
+        {name:"合成斧頭8",category:"合成斧",materials:{"石8":1,"木8":1}},
+        {name:"合成斧頭9",category:"合成斧",materials:{"石8":2,"木8":2}},
+        {name:"合成迴旋標1",category:"合成迴旋標",materials:{"皮1":1,"石1":1}},
+        {name:"合成迴旋標2",category:"合成迴旋標",materials:{"皮2":1,"石2":1}},
+        {name:"合成迴旋標3",category:"合成迴旋標",materials:{"皮3":1,"石3":1}},
+        {name:"合成迴旋標4",category:"合成迴旋標",materials:{"皮4":1,"石4":1}},
+        {name:"合成迴旋標5",category:"合成迴旋標",materials:{"皮5":1,"石5":1}},
+        {name:"合成迴旋標6",category:"合成迴旋標",materials:{"皮6":1,"石6":1}},
+        {name:"合成迴旋標7",category:"合成迴旋標",materials:{"皮7":1,"石7":1}},
+        {name:"合成迴旋標8",category:"合成迴旋標",materials:{"皮8":1,"石8":1}},
+        {name:"合成迴旋標9",category:"合成迴旋標",materials:{"皮8":2,"石8":2}},
+        {name:"合成投擲斧頭1",category:"合成投擲斧",materials:{"石1":1,"木1":1}},
+        {name:"合成投擲斧頭2",category:"合成投擲斧",materials:{"石2":1,"木2":1}},
+        {name:"合成投擲斧頭3",category:"合成投擲斧",materials:{"石3":1,"木3":1}},
+        {name:"合成投擲斧頭4",category:"合成投擲斧",materials:{"石4":1,"木4":1}},
+        {name:"合成投擲斧頭5",category:"合成投擲斧",materials:{"石5":1,"木5":1}},
+        {name:"合成投擲斧頭6",category:"合成投擲斧",materials:{"石6":1,"木6":1}},
+        {name:"合成投擲斧頭7",category:"合成投擲斧",materials:{"石7":1,"木7":1}},
+        {name:"合成投擲斧頭8",category:"合成投擲斧",materials:{"石8":1,"木8":1}},
+        {name:"合成投擲斧頭9",category:"合成投擲斧",materials:{"石8":2,"木8":2}},
+        {name:"合成兜1",category:"合成兜",materials:{"皮1":1,"石1":1,"葉1":1}},
+        {name:"合成兜2",category:"合成兜",materials:{"皮2":1,"石2":1,"葉2":1}},
+        {name:"合成兜3",category:"合成兜",materials:{"皮3":1,"石3":1,"葉3":1}},
+        {name:"合成兜4",category:"合成兜",materials:{"皮4":1,"石4":1,"葉4":1}},
+        {name:"合成兜5",category:"合成兜",materials:{"皮5":1,"石5":1,"葉5":1}},
+        {name:"合成兜6",category:"合成兜",materials:{"皮6":1,"石6":1,"葉6":1}},
+        {name:"合成兜7",category:"合成兜",materials:{"皮7":1,"石7":1,"葉7":1}},
+        {name:"合成兜8",category:"合成兜",materials:{"皮8":1,"石8":1,"葉8":1}},
+        {name:"合成兜9",category:"合成兜",materials:{"皮8":2,"石8":2,"葉8":2}},
+        {name:"合成防具1",category:"合成防具",materials:{"皮1":1,"線1":1,"土1":1}},
+        {name:"合成防具2",category:"合成防具",materials:{"皮2":1,"線2":1,"土2":1}},
+        {name:"合成防具3",category:"合成防具",materials:{"皮3":1,"線3":1,"土3":1}},
+        {name:"合成防具4",category:"合成防具",materials:{"皮4":1,"線4":1,"土4":1}},
+        {name:"合成防具5",category:"合成防具",materials:{"皮5":1,"線5":1,"土5":1}},
+        {name:"合成防具6",category:"合成防具",materials:{"皮6":1,"線6":1,"土6":1}},
+        {name:"合成防具7",category:"合成防具",materials:{"皮7":1,"線7":1,"土7":1}},
+        {name:"合成防具8",category:"合成防具",materials:{"皮8":1,"線8":1,"土8":1}},
+        {name:"合成防具9",category:"合成防具",materials:{"皮8":2,"線8":2,"土8":2}},
+        {name:"合成鎧1",category:"合成鎧",materials:{"皮1":1,"石1":1,"葉1":1}},
+        {name:"合成鎧2",category:"合成鎧",materials:{"皮2":1,"石2":1,"葉2":1}},
+        {name:"合成鎧3",category:"合成鎧",materials:{"皮3":1,"石3":1,"葉3":1}},
+        {name:"合成鎧4",category:"合成鎧",materials:{"皮4":1,"石4":1,"葉4":1}},
+        {name:"合成鎧5",category:"合成鎧",materials:{"皮5":1,"石5":1,"葉5":1}},
+        {name:"合成鎧6",category:"合成鎧",materials:{"皮6":1,"石6":1,"葉6":1}},
+        {name:"合成鎧7",category:"合成鎧",materials:{"皮7":1,"石7":1,"葉7":1}},
+        {name:"合成鎧8",category:"合成鎧",materials:{"皮8":1,"石8":1,"葉8":1}},
+        {name:"合成鎧9",category:"合成鎧",materials:{"皮8":2,"石8":2,"葉8":2}},
+        {name:"合成服1",category:"合成服",materials:{"皮1":1,"線1":1,"葉1":1}},
+        {name:"合成服2",category:"合成服",materials:{"皮2":1,"線2":1,"葉2":1}},
+        {name:"合成服3",category:"合成服",materials:{"皮3":1,"線3":1,"葉3":1}},
+        {name:"合成服4",category:"合成服",materials:{"皮4":1,"線4":1,"葉4":1}},
+        {name:"合成服5",category:"合成服",materials:{"皮5":1,"線5":1,"葉5":1}},
+        {name:"合成服6",category:"合成服",materials:{"皮6":1,"線6":1,"葉6":1}},
+        {name:"合成服7",category:"合成服",materials:{"皮7":1,"線7":1,"葉7":1}},
+        {name:"合成服8",category:"合成服",materials:{"皮8":1,"線8":1,"葉8":1}},
+        {name:"合成服9",category:"合成服",materials:{"皮8":2,"線8":2,"葉8":2}}
+    ];
+
+    // --- 2. 商人分類系統 ---
+    const merchantRules = [
+        { id: "MA_MEAT", name: "瑪村-超商肉店", group: "MA", items: ["肉","蛋","蜥蜴","青蛙"], maxLv: 4 },
+        { id: "MA_FISH", name: "瑪村-超商魚店", group: "MA", items: ["魚","螃蟹","蟹","花枝","章魚","蝦","海星","海藻","貝"], maxLv: 4 },
+        { id: "MA_VEG1", name: "瑪村-蔬果店1", group: "MA", items: ["紅蘿蔔","青椒","蕃茄","番茄","茄子","包心菜","蘆筍","小黃瓜"], maxLv: 3 },
+        { id: "MA_VEG2", name: "瑪村-蔬果店2", group: "MA", items: ["蔥","大蒜","蒜","豆","豆子","香菇","菇","馬鈴薯","地瓜","橡樹果","白菜","竹筍","筍子"], maxLv: 3 },
+        { id: "MA_FRUIT", name: "瑪村-水果店", group: "MA", items: ["桃子","桃","蘋果","草莓","梨子","梨","葡萄","櫻桃","橘子","柿子"], maxLv: 3 },
+        { id: "MA_RICE", name: "瑪村-米店", group: "MA", items: ["米","鹽","砂糖","糖","油","生薑","香草","串","水","炭"], maxLv: 4 },
+        { id: "MA_LOCAL", name: "瑪村-地方特產 (LV4)", group: "MA", items: ["桃子","蘋果","草莓","梨子","葡萄","櫻桃","米","紅蘿蔔","青椒","茄子","包心菜","蔥","大蒜","豆","馬鈴薯","地瓜","鹽","貝","海藻","蕃茄","香菇","蘆筍","炭","胡椒","油","生薑","小黃瓜","水","砂糖","糖","橘子","柿子","白菜","筍子","竹筍"], minLv: 4 },
+        
+        { id: "SA_REFUGE", name: "薩村-避難洞商人", group: "SA", items: ["胡椒"], maxLv: 3 },
+        { id: "SA_STONE", name: "薩村-石、木", group: "SA", items: ["石","木","骨"], maxLv: 8 },
+        { id: "SA_SKIN", name: "薩村-牙、皮", group: "SA", items: ["牙","皮","線","土","粘土"], maxLv: 8 },
+        { id: "SA_SHELL", name: "薩村-貝、鱗", group: "SA", items: ["殼","葉"], maxLv: 8 }
+    ];
+
+    function getMerchant(name, level) {
+        if (name === "橡樹果" && level <= 4) return { name: "瑪村-蔬果店2", group: "MA", sort: 4 };
+
+        if (level >= 4) {
+            const local = merchantRules.find(r => r.id === "MA_LOCAL");
+            if (local && local.items.includes(name)) return { name: local.name, group: "MA", sort: 7 };
+        }
+
+        if (name === "胡椒" && level <= 3) return { name: "薩村-避難洞商人", group: "SA", sort: 20 };
+
+        for (let i=0; i<merchantRules.length; i++) {
+            const r = merchantRules[i];
+            if (r.group === "SA" && r.items.includes(name) && level <= r.maxLv) {
+                return { name: r.name, group: "SA", sort: 50 + i };
+            }
+        }
+
+        for (let i=0; i<merchantRules.length; i++) {
+            const r = merchantRules[i];
+            if (r.group === "MA" && r.id !== "MA_LOCAL" && r.items.includes(name)) {
+                if ((name === "海藻" || name === "貝") && level > 3) continue; 
+                if (level <= r.maxLv) {
+                    return { name: r.name, group: "MA", sort: 10 + i };
+                }
+            }
+        }
+
+        return { name: "其他 / 野外採集", group: "OTHER", sort: 99 };
+    }
+
+    // --- 3. 程式邏輯 ---
+    const carts = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+    let currentTab = 1;
+
+    const recipeList = document.getElementById('recipeList');
+    const selectedList = document.getElementById('selectedList');
+    const merchantResults = document.getElementById('merchantResults');
+    const totalMaterialCount = document.getElementById('totalMaterialCount');
+    const searchBar = document.getElementById('searchBar');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const listTitle = document.getElementById('listTitle');
+
+    // 排序權重
+    const categoryOrder = {
+        "耐久(單)": 1,
+        "氣力": 2,
+        "狀態料理": 3,
+        "解除狀態": 4,
+        "耐久(全)": 5,
+        "耐久氣力": 6
+    };
+
+    function init() {
+        // 對資料庫進行排序
+        recipes.sort((a, b) => {
+            const orderA = categoryOrder[a.category] || 99;
+            const orderB = categoryOrder[b.category] || 99;
+            return orderA - orderB;
+        });
+
+        populateCategories();
+        renderRecipes(recipes);
+        updateCartDisplay();
+        
+        searchBar.addEventListener('input', () => filterData());
+        categoryFilter.addEventListener('change', () => filterData());
+    }
+
+    function switchTab(tabId) {
+        currentTab = tabId;
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`.tab-btn:nth-child(${tabId})`).classList.add('active');
+        listTitle.textContent = `📝 人物 ${tabId} 清單 (點名定位)`;
+        updateCartDisplay();
+    }
+
+    function populateCategories() {
+        const cats = new Set(recipes.map(r => r.category));
+        const sortedCats = Array.from(cats).sort((a, b) => (categoryOrder[a] || 99) - (categoryOrder[b] || 99));
+        sortedCats.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            categoryFilter.appendChild(opt);
+        });
+    }
+
+    function filterData() {
+        const keyword = searchBar.value.toLowerCase().trim();
+        const cat = categoryFilter.value;
+        const filtered = recipes.filter(r => {
+            const matchKey = r.name.toLowerCase().includes(keyword);
+            const matchCat = cat === 'all' || r.category === cat;
+            return matchKey && matchCat;
+        });
+        renderRecipes(filtered);
+    }
+
+    // 反向搜尋功能
+    function reverseSearch(itemName) {
+        searchBar.value = "";
+        categoryFilter.value = "all";
+        
+        renderRecipes(recipes);
+        
+        setTimeout(() => {
+            const cards = document.querySelectorAll('.recipe-card');
+            for(let card of cards) {
+                if(card.querySelector('.recipe-name').textContent === itemName) {
+                    card.scrollIntoView({behavior: "smooth", block: "center"});
+                    card.classList.add('flash');
+                    setTimeout(() => card.classList.remove('flash'), 1500);
+                    break;
+                }
+            }
+        }, 50);
+    }
+
+    function getCategoryClass(cat) {
+        if (cat.includes("耐久(單)")) return "card-dur-single";
+        if (cat.includes("氣力")) return "card-energy";
+        if (cat.includes("狀態") || cat.includes("解除")) return "card-status";
+        if (cat.includes("耐久(全)")) return "card-dur-all";
+        if (cat.includes("耐久氣力")) return "card-composite";
+        return "card-equip";
+    }
+
+    function renderRecipes(list) {
+        recipeList.innerHTML = '';
+        list.forEach(item => {
+            const div = document.createElement('div');
+            const bgClass = getCategoryClass(item.category);
+            div.className = `recipe-card ${bgClass}`;
+            const matPreview = Object.keys(item.materials).join('、');
+            div.innerHTML = `
+                <div class="recipe-name">${item.name}</div>
+                <div class="recipe-cat">${item.category}</div>
+                <div class="recipe-mats">${matPreview}</div>
+            `;
+            div.onclick = () => addToCart(item);
+            recipeList.appendChild(div);
+        });
+    }
+
+    function addToCart(item) {
+        carts[currentTab].push(JSON.parse(JSON.stringify(item)));
+        updateCartDisplay();
+    }
+
+    function removeFromCart(index) {
+        carts[currentTab].splice(index, 1);
+        updateCartDisplay();
+    }
+
+    function clearCart() {
+        carts[currentTab] = [];
+        updateCartDisplay();
+    }
+
+    function updateCartDisplay() {
+        const currentCart = carts[currentTab];
+        selectedList.innerHTML = '';
+        
+        if (currentCart.length === 0) {
+            selectedList.innerHTML = '<div class="empty-msg">尚未加入任何項目</div>';
+        } else {
+            currentCart.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = 'cart-item';
+                div.innerHTML = `
+                    <div style="display:flex; align-items:center;">
+                        <span class="cart-item-name" onclick="reverseSearch('${item.name}')">${item.name}</span>
+                        <span class="cart-item-cat">(${item.category})</span>
+                    </div>
+                    <span class="btn-remove" onclick="removeFromCart(${idx})">✕</span>
+                `;
+                selectedList.appendChild(div);
+            });
+        }
+        calculateMerchantTotals();
+    }
+
+    function calculateMerchantTotals() {
+        const currentCart = carts[currentTab];
+        const merchantTotals = {}; 
+        let totalCount = 0; 
+
+        currentCart.forEach(item => {
+            for (let [matName, qty] of Object.entries(item.materials)) {
+                let match = matName.match(/^([^\d]+)(\d+)?$/);
+                if(!match) continue;
+                let name = match[1];
+                let level = match[2] ? parseInt(match[2]) : 1;
+
+                const merchInfo = getMerchant(name, level);
+                const merchKey = merchInfo.name;
+
+                if (!merchantTotals[merchKey]) {
+                    merchantTotals[merchKey] = {
+                        group: merchInfo.group,
+                        sort: merchInfo.sort,
+                        mats: {}
+                    };
+                }
+                
+                if (!merchantTotals[merchKey].mats[matName]) {
+                    merchantTotals[merchKey].mats[matName] = 0;
+                }
+                merchantTotals[merchKey].mats[matName] += qty;
+                totalCount += qty;
+            }
+        });
+
+        totalMaterialCount.textContent = `總數: ${totalCount}`;
+        renderMerchantResults(merchantTotals);
+    }
+
+    function renderMerchantResults(totals) {
+        merchantResults.innerHTML = '';
+        const merchKeys = Object.keys(totals).sort((a, b) => totals[a].sort - totals[b].sort);
+
+        if (merchKeys.length === 0) {
+            merchantResults.innerHTML = '<div class="empty-msg">-- 請先選擇製作項目 --</div>';
+            return;
+        }
+
+        const grid = document.createElement('div');
+        grid.className = 'merchant-grid';
+
+        merchKeys.forEach(key => {
+            const data = totals[key];
+            const group = document.createElement('div');
+            group.className = 'merchant-group';
+            
+            const header = document.createElement('div');
+            header.className = `merchant-title`;
+            header.setAttribute('data-group', data.group);
+            header.textContent = key;
+            group.appendChild(header);
+
+            const itemsDiv = document.createElement('div');
+            itemsDiv.className = 'merchant-items';
+
+            const matKeys = Object.keys(data.mats).sort((a, b) => {
+                const splitA = a.match(/^([^\d]+)(\d+)?$/);
+                const splitB = b.match(/^([^\d]+)(\d+)?$/);
+                if (!splitA || !splitB) return a.localeCompare(b);
+                const nameA = splitA[1];
+                const numA = splitA[2] ? parseInt(splitA[2]) : 0;
+                const nameB = splitB[1];
+                const numB = splitB[2] ? parseInt(splitB[2]) : 0;
+                if (nameA !== nameB) return nameA.localeCompare(nameB);
+                return numA - numB;
+            });
+
+            matKeys.forEach(mat => {
+                const qty = data.mats[mat];
+                const qtyClass = qty >= 2 ? 'mat-qty highlight' : 'mat-qty';
+                
+                const row = document.createElement('div');
+                row.className = 'mat-row';
+                row.innerHTML = `
+                    <span class="mat-name">${mat}</span>
+                    <span class="${qtyClass}">x${qty}</span>
+                `;
+                itemsDiv.appendChild(row);
+            });
+
+            group.appendChild(itemsDiv);
+            grid.appendChild(group);
+        });
+        
+        merchantResults.appendChild(grid);
+    }
+
+    init();
+</script>
+
+</body>
+</html>
